@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""Cache Framework EC privacy slider state for an unprivileged shell plugin."""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import subprocess
+import time
+from pathlib import Path
+
+COMMAND = ["/usr/bin/framework_tool", "--privacy"]
+STATE_DIR = Path("/run/framework-privacy-waybar")
+STATE_FILE = STATE_DIR / "state.json"
+INTERVAL_SECONDS = 1.0
+
+
+def parse(output: str) -> dict[str, bool]:
+    states: dict[str, bool] = {}
+    pattern = re.compile(r"^\s*(Microphone|Camera):\s+(Connected|Disconnected)\s*$")
+    for line in output.splitlines():
+        match = pattern.match(line)
+        if match:
+            states[match.group(1).lower()] = match.group(2) == "Connected"
+    if set(states) != {"microphone", "camera"}:
+        raise ValueError("framework_tool did not return both privacy slider states")
+    return states
+
+
+def write_state(payload: dict[str, object]) -> None:
+    STATE_DIR.mkdir(mode=0o755, parents=True, exist_ok=True)
+    temporary = STATE_DIR / f".state.{os.getpid()}.tmp"
+    temporary.write_text(
+        json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    temporary.chmod(0o644)
+    temporary.replace(STATE_FILE)
+
+
+def collect() -> dict[str, object]:
+    result = subprocess.run(
+        COMMAND,
+        text=True,
+        capture_output=True,
+        timeout=2.0,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise RuntimeError(detail or f"framework_tool exited {result.returncode}")
+    return {**parse(result.stdout), "updated": time.time()}
+
+
+def self_test() -> None:
+    sample = """Privacy Slider (Black = Device Connected; Red = Device Disconnected)
+  Microphone:  Connected
+  Camera:      Disconnected
+"""
+    assert parse(sample) == {"microphone": True, "camera": False}
+    print("framework-privacy-cache self-test: ok")
+
+
+def main() -> None:
+    if "--self-test" in os.sys.argv[1:]:
+        self_test()
+        return
+    while True:
+        try:
+            write_state(collect())
+        except Exception as error:
+            write_state({"error": str(error), "updated": time.time()})
+        time.sleep(INTERVAL_SECONDS)
+
+
+if __name__ == "__main__":
+    main()

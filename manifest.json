@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "chalkers.framework-microphone",
+  "name": "Framework Microphone Privacy",
+  "version": "1.0.0",
+  "author": "chalkers",
+  "description": "Framework hardware microphone privacy and capture indicator",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Framework Microphone Privacy",
+    "description": "Shows the physical microphone privacy switch and active capture state",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "center"
+  }
+}
