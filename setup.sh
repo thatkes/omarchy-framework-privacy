@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
-if [[ ! -e /sys/class/dmi/id/product_name ]] || ! grep -qi framework /sys/class/dmi/id/product_name; then
+if ! grep -qis framework /sys/class/dmi/id/{sys_vendor,product_name,board_vendor}; then
   echo "This system does not identify itself as a Framework computer." >&2
   exit 1
 fi
