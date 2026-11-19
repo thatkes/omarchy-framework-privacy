@@ -13,17 +13,7 @@
     "displayName": "Framework Privacy Indicators",
     "description": "Shows the physical microphone and camera privacy switches, active capture state, and per-icon on/off toggles",
     "category": "System",
-    "allowMultiple": true,
-    "defaultSection": "centerEnd",
-    "schema": [
-      {
-        "key": "mode",
-        "type": "enum",
-        "label": "Indicator",
-        "description": "Which privacy indicator this widget instance shows. Add a second instance for the other device.",
-        "options": ["microphone", "camera"],
-        "defaultValue": "microphone"
-      }
-    ]
+    "allowMultiple": false,
+    "defaultSection": "centerEnd"
   }
 }
