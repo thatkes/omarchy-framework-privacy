@@ -6,7 +6,7 @@ on Framework laptops. It is a fork of
 with both indicators in one widget and one setup script.
 
 The widget shows a microphone icon and a camera icon side by side. Each reports
-the hardware privacy slider and active PipeWire capture:
+the hardware privacy slider and active capture (PipeWire or direct V4L2):
 
 - **Blue:** the physical switch is on; the device is ready and idle.
 - **Green:** an application is actively capturing from that device.
@@ -14,8 +14,13 @@ the hardware privacy slider and active PipeWire capture:
 - **Amber warning:** the hardware state is unavailable or stale.
 
 Hover an icon for details. Left-click for a popup with an on/off switch for each
-indicator; right-click an icon to toggle just that one. Turning both off
-collapses the widget. The CLI controls the same settings.
+indicator, plus a camera-slider switch; right-click an icon to toggle just that
+one. Turning both off collapses the widget. The CLI controls the same settings.
+
+Some Framework ECs only report the camera switch while the sensor is powered,
+so an idle black slider can look disconnected. The popup's **Camera slider**
+switch (or the CLI command below) records the real position and is used until
+the EC reports the camera connected again.
 
 ## Requirements
 
@@ -50,10 +55,13 @@ before running it.
   framework-privacy toggle microphone      # aliases: mic
   framework-privacy off camera             # aliases: cam, webcam
   framework-privacy on mic
+  framework-privacy slider camera black   # or: red
   ```
 
-The on/off state lives in `~/.config/framework-privacy/state.json` and defaults
-to both indicators on. If you turn both off, use the CLI to bring them back.
+The on/off state and the camera-slider override live in
+`~/.config/framework-privacy/state.json`. Indicators default to on and the
+slider override is only used when the EC says the camera is disconnected. If
+you turn both indicators off, use the CLI to bring them back.
 
 ## Manage
 
@@ -77,9 +85,11 @@ setup.sh status
 1. `framework-privacy-cache.service` runs `/usr/bin/framework_tool --privacy` once per second.
 2. The service writes both slider states and a timestamp to `/run/framework-privacy-waybar/state.json`.
 3. `status.py` reads both devices' hardware state, checks PipeWire for running
-   `Stream/Input/Audio` and `Stream/Input/Video` captures, and reads the on/off state.
+   `Stream/Input/Audio` and `Stream/Input/Video` captures, checks `/proc` for
+   direct `/dev/video*` users such as Chromium, and reads the on/off state.
 4. `BarWidget.qml` runs `status.py` every two seconds and draws both icons, colors and tooltips.
-5. The popup and `framework-privacy` CLI both write `~/.config/framework-privacy/state.json`.
+5. The popup and `framework-privacy` CLI both write `~/.config/framework-privacy/state.json`,
+   including the optional `camera_slider` override.
 
 ## License
 
