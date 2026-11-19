@@ -5,22 +5,21 @@ on Framework laptops. It is a fork of
 [chalkers/omarchy-framework-microphone](https://github.com/chalkers/omarchy-framework-microphone)
 with both indicators in one widget and one setup script.
 
-The widget shows a microphone icon and a camera icon side by side. Each reports
-the hardware privacy slider and active capture (PipeWire or direct V4L2):
+The widget shows a microphone icon and a camera icon side by side. The microphone
+reports the hardware privacy slider and PipeWire capture:
 
-- **Blue:** the physical switch is on; the device is ready and idle.
-- **Green:** an application is actively capturing from that device.
+- **Blue:** the physical switch is on; the microphone is ready and idle.
+- **Green:** an application is actively capturing audio.
 - **Red, crossed out:** the physical switch is off; the red slider is visible.
-- **Amber warning:** the hardware state is unavailable or stale.
+
+The camera icon is a capture indicator only: **red** when idle and **green**
+when an application is using it. Some Framework ECs only report the camera
+switch while the sensor is powered, so an idle black slider is indistinguishable
+from red; showing a false "ready" blue would be misleading.
 
 Hover an icon for details. Left-click for a popup with an on/off switch for each
-indicator, plus a camera-slider switch; right-click an icon to toggle just that
-one. Turning both off collapses the widget. The CLI controls the same settings.
-
-Some Framework ECs only report the camera switch while the sensor is powered,
-so an idle black slider can look disconnected. The popup's **Camera slider**
-switch (or the CLI command below) records the real position and is used until
-the EC reports the camera connected again.
+indicator; right-click an icon to toggle just that one. Turning both off
+collapses the widget. The CLI controls the same settings.
 
 ## Requirements
 
@@ -55,13 +54,10 @@ before running it.
   framework-privacy toggle microphone      # aliases: mic
   framework-privacy off camera             # aliases: cam, webcam
   framework-privacy on mic
-  framework-privacy slider camera black   # or: red
   ```
 
-The on/off state and the camera-slider override live in
-`~/.config/framework-privacy/state.json`. Indicators default to on and the
-slider override is only used when the EC says the camera is disconnected. If
-you turn both indicators off, use the CLI to bring them back.
+The on/off state lives in `~/.config/framework-privacy/state.json` and defaults
+to both indicators on. If you turn both off, use the CLI to bring them back.
 
 ## Manage
 
@@ -87,9 +83,9 @@ setup.sh status
 3. `status.py` reads both devices' hardware state, checks PipeWire for running
    `Stream/Input/Audio` and `Stream/Input/Video` captures, checks `/proc` for
    direct `/dev/video*` users such as Chromium, and reads the on/off state.
+   The camera is shown as idle red unless a capture is active.
 4. `BarWidget.qml` runs `status.py` every two seconds and draws both icons, colors and tooltips.
-5. The popup and `framework-privacy` CLI both write `~/.config/framework-privacy/state.json`,
-   including the optional `camera_slider` override.
+5. The popup and `framework-privacy` CLI both write `~/.config/framework-privacy/state.json`.
 
 ## License
 

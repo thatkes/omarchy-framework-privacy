@@ -17,7 +17,6 @@ BarWidget {
 
   property bool micEnabled: true
   property bool cameraEnabled: true
-  property bool cameraSliderBlack: true
   property string micIcon: ""
   property string cameraIcon: ""
   property string micState: "error"
@@ -59,9 +58,6 @@ BarWidget {
       root.cameraIcon = String(camera.icon || "")
       root.cameraState = String(camera.state || "error")
       root.cameraTooltip = String(camera.tooltip || "Framework camera privacy state unavailable")
-      if (camera.slider_black !== undefined && camera.slider_black !== null) {
-        root.cameraSliderBlack = camera.slider_black === true
-      }
 
       var visibility = mic.visibility || camera.visibility || {}
       root.micEnabled = visibility.microphone !== false
@@ -81,11 +77,6 @@ BarWidget {
   // Both the popup and the CLI write the same state file.
   function setEnabled(which, value) {
     setProc.command = [cliScript, value ? "on" : "off", which]
-    if (!setProc.running) setProc.running = true
-  }
-
-  function setCameraSlider(black) {
-    setProc.command = [cliScript, "slider", "camera", black ? "black" : "red"]
     if (!setProc.running) setProc.running = true
   }
 
@@ -219,17 +210,9 @@ BarWidget {
         onClicked: root.setEnabled("camera", !root.cameraEnabled)
       }
 
-      Toggle {
-        width: parent.width
-        label: "Camera slider"
-        description: "Black = camera available, red = camera blocked"
-        checked: root.cameraSliderBlack
-        onClicked: root.setCameraSlider(!root.cameraSliderBlack)
-      }
-
       Text {
         textFormat: Text.PlainText
-        text: "Right-click an icon to toggle it directly.\nCLI: framework-privacy toggle microphone|camera\n     framework-privacy slider camera black|red"
+        text: "Right-click an icon to toggle it directly.\nCLI: framework-privacy toggle microphone|camera"
         color: Qt.darker(Commons.Color.foreground, 1.5)
         font.family: Style.font.family
         font.pixelSize: Style.font.caption

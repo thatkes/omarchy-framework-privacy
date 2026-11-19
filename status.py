@@ -130,21 +130,6 @@ def write_visibility(device: str, enabled: bool) -> dict[str, bool]:
     return read_visibility()
 
 
-def read_camera_slider() -> str | None:
-    position = read_state().get("camera_slider")
-    return position if position in ("black", "red") else None
-
-
-def write_camera_slider(position: str) -> str:
-    normalized = str(position).strip().lower()
-    if normalized not in ("black", "red"):
-        raise ValueError("camera slider position must be black or red")
-    state = read_state()
-    state["camera_slider"] = normalized
-    write_state(state)
-    return normalized
-
-
 def application_name(props: dict[str, Any]) -> str:
     for key in (
         "application.name",
@@ -297,8 +282,6 @@ def render(
         "hardware": hardware,
         "activity": activity,
         "visibility": visibility,
-        "slider": ("black" if connected else "red") if device == "camera" else None,
-        "slider_black": connected if device == "camera" else None,
     }
 
 
@@ -315,8 +298,6 @@ def output_error(error: Exception, device: str) -> dict[str, Any]:
         "hardware": "unknown",
         "activity": "unknown",
         "visibility": visibility,
-        "slider": None,
-        "slider_black": None,
     }
 
 
@@ -326,11 +307,12 @@ def get_status(device: str) -> dict[str, Any]:
         connected = get_hardware_state(device)
         applications = get_active_captures(device)
 
-        # This EC only reports the camera switch while the sensor is powered,
-        # so an idle black slider looks "disconnected". The persisted slider
-        # override supplies the missing state; active capture always wins.
-        if device == "camera" and not connected and read_camera_slider() == "black":
-            connected = True
+        # The EC only reports the camera switch as connected while the sensor
+        # is powered, so an idle black slider is indistinguishable from red.
+        # Show the camera icon only as a capture indicator: red when idle,
+        # green when something is actively using it.
+        if device == "camera" and not applications:
+            connected = False
 
         return render(
             device,
@@ -375,14 +357,6 @@ def self_test() -> None:
             assert read_visibility()["microphone"] is True
             write_visibility("camera", True)
             assert read_visibility()["camera"] is True
-            assert read_camera_slider() is None
-            assert write_camera_slider("black") == "black"
-            assert read_camera_slider() == "black"
-            assert read_visibility()["camera"] is True
-            write_visibility("microphone", False)
-            assert read_camera_slider() == "black"
-            assert write_camera_slider("red") == "red"
-            assert read_visibility()["microphone"] is False
     finally:
         VISIBILITY_FILE = original
 

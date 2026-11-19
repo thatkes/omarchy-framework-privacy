@@ -27,12 +27,6 @@ def main() -> int:
         control = sub.add_parser(command, help=f"turn {command} an indicator")
         control.add_argument("device", help=DEVICES_HELP)
 
-    slider_parser = sub.add_parser(
-        "slider", help="set the camera slider position (the EC cannot read it while idle)"
-    )
-    slider_parser.add_argument("device", help="camera|cam|webcam")
-    slider_parser.add_argument("position", nargs="?", choices=("black", "red"))
-
     args = parser.parse_args()
 
     try:
@@ -54,18 +48,6 @@ def main() -> int:
                         f"{item['label']}: {item['state']} | indicator: {state} "
                         f"| hardware: {item['hardware']} | activity: {item['activity']}"
                     )
-            return 0
-
-        if args.command == "slider":
-            device = backend.normalize_device(args.device)
-            if device != "camera":
-                raise ValueError("the slider override is only available for the camera")
-            if args.position is None:
-                position = backend.read_camera_slider() or "unknown"
-                print(f"Camera slider: {position}")
-            else:
-                position = backend.write_camera_slider(args.position)
-                print(f"Camera slider: {position}")
             return 0
 
         device = backend.normalize_device(args.device)
