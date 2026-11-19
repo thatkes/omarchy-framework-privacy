@@ -10,6 +10,7 @@ the bar widget and the `framework-privacy` CLI.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import tempfile
 import time
@@ -91,16 +92,28 @@ def get_hardware_state(device: str) -> bool:
     return parse_cached_state(payload, device)
 
 
-def read_visibility() -> dict[str, bool]:
-    state = {name: True for name in DEVICES}
+def read_state() -> dict[str, Any]:
     try:
         payload = json.loads(VISIBILITY_FILE.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return state
-    if not isinstance(payload, dict):
-        return state
+        return {}
+    return payload if isinstance(payload, dict) else {}
 
-    for key, value in payload.items():
+
+def write_state(state: dict[str, Any]) -> None:
+    VISIBILITY_FILE.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+    temporary = VISIBILITY_FILE.with_name(VISIBILITY_FILE.name + ".tmp")
+    temporary.write_text(
+        json.dumps(state, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    temporary.chmod(0o644)
+    temporary.replace(VISIBILITY_FILE)
+
+
+def read_visibility() -> dict[str, bool]:
+    state = {name: True for name in DEVICES}
+    for key, value in read_state().items():
         try:
             name = normalize_device(key)
         except ValueError:
@@ -111,18 +124,25 @@ def read_visibility() -> dict[str, bool]:
 
 def write_visibility(device: str, enabled: bool) -> dict[str, bool]:
     name = normalize_device(device)
-    state = read_visibility()
+    state = read_state()
     state[name] = bool(enabled)
+    write_state(state)
+    return read_visibility()
 
-    VISIBILITY_FILE.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
-    temporary = VISIBILITY_FILE.with_name(VISIBILITY_FILE.name + ".tmp")
-    temporary.write_text(
-        json.dumps(state, ensure_ascii=False, separators=(",", ":")) + "\n",
-        encoding="utf-8",
-    )
-    temporary.chmod(0o644)
-    temporary.replace(VISIBILITY_FILE)
-    return state
+
+def read_camera_slider() -> str | None:
+    position = read_state().get("camera_slider")
+    return position if position in ("black", "red") else None
+
+
+def write_camera_slider(position: str) -> str:
+    normalized = str(position).strip().lower()
+    if normalized not in ("black", "red"):
+        raise ValueError("camera slider position must be black or red")
+    state = read_state()
+    state["camera_slider"] = normalized
+    write_state(state)
+    return normalized
 
 
 def application_name(props: dict[str, Any]) -> str:
@@ -139,19 +159,66 @@ def application_name(props: dict[str, Any]) -> str:
     return "unknown application"
 
 
+def process_name(proc: Path) -> str:
+    try:
+        name = (proc / "comm").read_text(encoding="utf-8").strip()
+        if name:
+            return name
+    except OSError:
+        pass
+    try:
+        args = (proc / "cmdline").read_text(encoding="utf-8").split("\0")
+        for arg in args:
+            if arg.strip():
+                return Path(arg).name
+    except OSError:
+        pass
+    return f"pid {proc.name}"
+
+
+def get_v4l2_capture_users() -> set[str]:
+    """Find processes holding a /dev/video* node open.
+
+    Browsers such as Chromium access V4L2 directly and never appear in
+    PipeWire, so a PipeWire-only check reports an active camera as idle.
+    """
+    users: set[str] = set()
+    try:
+        processes = list(Path("/proc").glob("[0-9]*"))
+    except OSError:
+        return users
+
+    for proc in processes:
+        try:
+            descriptors = (proc / "fd").iterdir()
+            for descriptor in descriptors:
+                try:
+                    target = os.readlink(descriptor)
+                except OSError:
+                    continue
+                if target.startswith("/dev/video"):
+                    users.add(process_name(proc))
+                    break
+        except OSError:
+            continue
+    return users
+
+
 def get_active_captures(device: str) -> set[str]:
     spec = DEVICES[device]
     capture_classes = set(spec["capture_classes"])
     source_classes = set(spec.get("source_classes", ()))
 
-    result = run(["pw-dump"])
-    if result.returncode != 0:
-        raise RuntimeError((result.stderr or "pw-dump failed").strip())
-
+    objects: list[Any] = []
     try:
-        objects = json.loads(result.stdout)
-    except json.JSONDecodeError as error:
-        raise RuntimeError("pw-dump returned invalid JSON") from error
+        result = run(["pw-dump"])
+        if result.returncode == 0:
+            decoded = json.loads(result.stdout)
+            if isinstance(decoded, list):
+                objects = decoded
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        # PipeWire is optional; direct V4L2 users are still detected below.
+        pass
 
     applications: set[str] = set()
     source_active = False
@@ -178,6 +245,11 @@ def get_active_captures(device: str) -> set[str]:
     # the camera open, with no named client stream to report.
     if source_active and not applications:
         applications.add("camera stream")
+
+    # Chromium-based browsers use V4L2 directly and never create a PipeWire
+    # stream node, so also check who is holding /dev/video* open.
+    if device == "camera":
+        applications.update(get_v4l2_capture_users())
     return applications
 
 
@@ -225,6 +297,8 @@ def render(
         "hardware": hardware,
         "activity": activity,
         "visibility": visibility,
+        "slider": ("black" if connected else "red") if device == "camera" else None,
+        "slider_black": connected if device == "camera" else None,
     }
 
 
@@ -241,16 +315,27 @@ def output_error(error: Exception, device: str) -> dict[str, Any]:
         "hardware": "unknown",
         "activity": "unknown",
         "visibility": visibility,
+        "slider": None,
+        "slider_black": None,
     }
 
 
 def get_status(device: str) -> dict[str, Any]:
     try:
         visibility = read_visibility()
+        connected = get_hardware_state(device)
+        applications = get_active_captures(device)
+
+        # This EC only reports the camera switch while the sensor is powered,
+        # so an idle black slider looks "disconnected". The persisted slider
+        # override supplies the missing state; active capture always wins.
+        if device == "camera" and not connected and read_camera_slider() == "black":
+            connected = True
+
         return render(
             device,
-            get_hardware_state(device),
-            get_active_captures(device),
+            connected,
+            applications,
             visibility.get(device, True),
             visibility,
         )
@@ -290,6 +375,14 @@ def self_test() -> None:
             assert read_visibility()["microphone"] is True
             write_visibility("camera", True)
             assert read_visibility()["camera"] is True
+            assert read_camera_slider() is None
+            assert write_camera_slider("black") == "black"
+            assert read_camera_slider() == "black"
+            assert read_visibility()["camera"] is True
+            write_visibility("microphone", False)
+            assert read_camera_slider() == "black"
+            assert write_camera_slider("red") == "red"
+            assert read_visibility()["microphone"] is False
     finally:
         VISIBILITY_FILE = original
 
