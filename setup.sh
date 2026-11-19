@@ -20,4 +20,7 @@ sudo install -Dm644 \
 sudo systemctl daemon-reload
 sudo systemctl enable --now framework-privacy-cache.service
 
-echo "Framework microphone privacy cache is installed and active."
+mkdir -p "$HOME/.local/bin"
+ln -sfn "$ROOT_DIR/framework-privacy" "$HOME/.local/bin/framework-privacy"
+
+echo "Framework privacy cache and the framework-privacy CLI are installed and active."

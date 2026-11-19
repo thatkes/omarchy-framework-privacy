@@ -1,19 +1,29 @@
 {
   "schemaVersion": 1,
-  "id": "chalkers.framework-microphone",
-  "name": "Framework Microphone Privacy",
-  "version": "1.0.0",
-  "author": "chalkers",
-  "description": "Framework hardware microphone privacy and capture indicator",
+  "id": "thatkes.framework-privacy",
+  "name": "Framework Privacy Indicators",
+  "version": "1.1.0",
+  "author": "thatkes",
+  "description": "Framework hardware microphone and camera privacy indicators with per-icon toggles",
   "kinds": ["bar-widget"],
   "entryPoints": {
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {
-    "displayName": "Framework Microphone Privacy",
-    "description": "Shows the physical microphone privacy switch and active capture state",
+    "displayName": "Framework Privacy Indicators",
+    "description": "Shows the physical microphone and camera privacy switches, active capture state, and per-icon on/off toggles",
     "category": "System",
-    "allowMultiple": false,
-    "defaultSection": "center"
+    "allowMultiple": true,
+    "defaultSection": "centerEnd",
+    "schema": [
+      {
+        "key": "mode",
+        "type": "enum",
+        "label": "Indicator",
+        "description": "Which privacy indicator this widget instance shows. Add a second instance for the other device.",
+        "options": ["microphone", "camera"],
+        "defaultValue": "microphone"
+      }
+    ]
   }
 }

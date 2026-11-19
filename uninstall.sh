@@ -8,5 +8,7 @@ sudo rm -f \
   /usr/local/libexec/framework-privacy-cache
 sudo systemctl daemon-reload
 
-echo "Framework microphone privacy cache was removed."
-echo "Remove the shell plugin separately with: omarchy plugin remove chalkers.framework-microphone"
+rm -f "$HOME/.local/bin/framework-privacy"
+
+echo "Framework privacy cache and CLI link were removed."
+echo "Remove the shell plugin separately with: omarchy plugin remove thatkes.framework-privacy"

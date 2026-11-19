@@ -1,5 +1,5 @@
 [Unit]
-Description=Cache Framework microphone privacy slider state
+Description=Cache Framework microphone and camera privacy slider state
 Documentation=https://github.com/FrameworkComputer/framework-system
 After=systemd-udev-settle.service
 
