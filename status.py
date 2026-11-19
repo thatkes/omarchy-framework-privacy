@@ -29,7 +29,7 @@ DEVICES: dict[str, dict[str, Any]] = {
     },
     "camera": {
         "label": "Camera",
-        "icons": {"blocked": "󱜷", "ready": "󰖠", "active": "󰖠"},
+        "icons": {"blocked": "󰗟", "ready": "󰄀", "active": "󰄀"},
         "capture_classes": ("Stream/Input/Video",),
         "source_classes": ("Video/Source",),
     },
